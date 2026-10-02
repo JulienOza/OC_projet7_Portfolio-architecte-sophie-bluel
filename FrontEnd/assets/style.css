@@ -128,12 +128,68 @@ table {
   border-spacing: 0;
 }
 /** end reset css**/
+[hidden] {
+  display: none !important;
+}
+
 body {
   max-width: 1140px;
   margin: auto;
   font-family: "Work Sans";
   font-size: 14px;
 }
+#edition-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 59px;
+  width: 100vw;
+  margin-left: calc((100% - 100vw) / 2);
+  background: #000;
+  color: #fff;
+}
+
+.portfolio-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+#portfolio .portfolio-heading h2 {
+  grid-column: 2;
+  margin-bottom: 0;
+}
+
+#edit-button {
+  grid-column: 3;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px;
+  border: none;
+  background: transparent;
+  color: #000;
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .portfolio-heading {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+}
+
+#edition-banner > img {
+  filter: invert(1);
+}
+
 header {
   display: flex;
   justify-content: space-between;
@@ -141,6 +197,32 @@ header {
 }
 section {
   margin: 50px 0;
+}
+
+@media (min-width: 601px) {
+  #edition-banner ~ header {
+    margin-bottom: 150px;
+  }
+
+  #edition-banner:not([hidden]) ~ header {
+    margin: 40px 0 100px;
+  }
+
+  #edition-banner ~ main #introduction {
+    margin-bottom: 150px;
+  }
+
+  #edition-banner ~ main .portfolio-heading {
+    margin-bottom: 60px;
+  }
+
+  #edition-banner:not([hidden]) ~ main .portfolio-heading {
+    margin-bottom: 100px;
+  }
+
+  #edition-banner ~ main #portfolio {
+    margin-bottom: 65px;
+  }
 }
 
 h1 {

@@ -3,8 +3,25 @@ const categoriesUrl = "http://localhost:5678/api/categories";
 const filters = document.querySelector("#portfolio .filters");
 const gallery = document.querySelector("#portfolio .gallery");
 const galleryStatus = document.querySelector("#gallery-status");
+const editionBanner = document.querySelector("#edition-banner");
+const loginLink = document.querySelector("#login-link");
+const editButton = document.querySelector("#edit-button");
+const isConnected = Boolean(localStorage.getItem("token"));
 let allWorks = [];
 let selectedCategoryId = null;
+
+editionBanner.hidden = !isConnected;
+editButton.hidden = !isConnected;
+filters.hidden = isConnected;
+
+if (isConnected) {
+  loginLink.textContent = "logout";
+  loginLink.addEventListener("click", (event) => {
+    event.preventDefault();
+    localStorage.removeItem("token");
+    window.location.reload();
+  });
+}
 
 function renderWorks(works) {
   const filteredWorks =
