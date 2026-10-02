@@ -11,6 +11,7 @@
         rel="stylesheet">
     <meta name="description" content="Connexion à l'espace administrateur de Sophie Bluel">
     <link rel="stylesheet" href="./assets/style.css">
+    <script src="./login.js" defer></script>
 </head>
 
 <body class="login-page">
@@ -31,11 +32,12 @@
             <h2 id="login-title">Log In</h2>
             <form action="#" method="post">
                 <label for="email">E-mail</label>
-                <input type="email" name="email" id="email" autocomplete="email">
+                <input type="email" name="email" id="email" autocomplete="email" required>
                 <label for="password">Mot de passe</label>
-                <input type="password" name="password" id="password" autocomplete="current-password">
-                <button type="button">Se connecter</button>
+                <input type="password" name="password" id="password" autocomplete="current-password" required>
+                <button type="submit">Se connecter</button>
             </form>
+            <p id="login-status" role="alert" hidden></p>
             <a class="forgot-password" href="#">Mot de passe oublié</a>
         </section>
     </main>
