@@ -51,6 +51,9 @@ const stopPropagation = function (e) {
 
 const focusInModal = function (e) {
   e.preventDefault();
+  focusables = Array.from(modal.querySelectorAll(focusableSelector)).filter(
+    (element) => element.offsetParent !== null,
+  );
   let idx = focusables.findIndex((el) => el === modal.querySelector(":focus"));
   e.shiftKey ? idx-- : idx++;
   if (idx >= focusables.length) idx = 0;
@@ -217,9 +220,47 @@ function populateModalGallery(works) {
     img.src = work.imageUrl;
     img.alt = work.title;
 
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "modal-delete-btn";
+    deleteBtn.setAttribute("aria-label", `Supprimer ${work.title}`);
+
+    const deleteIcon = document.createElement("img");
+    deleteIcon.src = "./assets/icons/trash-can-solid.svg";
+    deleteIcon.alt = "";
+    deleteIcon.width = 9;
+    deleteIcon.height = 11;
+    deleteBtn.appendChild(deleteIcon);
+    deleteBtn.addEventListener("click", () => deleteWork(work, deleteBtn));
+
     figure.appendChild(img);
+    figure.appendChild(deleteBtn);
     grid.appendChild(figure);
   });
+}
+
+async function deleteWork(work, deleteBtn) {
+  const token = localStorage.getItem("token");
+
+  deleteBtn.disabled = true;
+  try {
+    const response = await fetch(`${worksUrl}/${work.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    allWorks = allWorks.filter((project) => project.id !== work.id);
+    renderWorks(allWorks);
+    populateModalGallery(allWorks);
+    if (modal !== null) modal.querySelector(".js-modal-close").focus();
+  } catch (error) {
+    window.alert("Impossible de supprimer le projet. Veuillez réessayer.");
+  } finally {
+    deleteBtn.disabled = false;
+  }
 }
 
 // ---- Navigation entre les deux vues ----
