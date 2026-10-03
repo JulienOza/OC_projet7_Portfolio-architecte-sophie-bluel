@@ -2,6 +2,7 @@ const focusableSelector = "button, a, input, textarea, select";
 let modal = null,
   focusables = [],
   previouslyFocusedElement = null;
+let isSubmitting = false;
 
 const openModal = function (e) {
   e.preventDefault();
@@ -18,7 +19,7 @@ const openModal = function (e) {
   modal.removeAttribute("aria-hidden");
   modal.setAttribute("aria-modal", "true");
   focusables = Array.from(modal.querySelectorAll(focusableSelector)).filter(
-    (element) => element.offsetParent !== null,
+    (element) => element.offsetParent !== null && !element.disabled,
   );
   focusables[0]?.focus();
   modal.addEventListener("click", closeModal);
@@ -52,7 +53,7 @@ const stopPropagation = function (e) {
 const focusInModal = function (e) {
   e.preventDefault();
   focusables = Array.from(modal.querySelectorAll(focusableSelector)).filter(
-    (element) => element.offsetParent !== null,
+    (element) => element.offsetParent !== null && !element.disabled,
   );
   let idx = focusables.findIndex((el) => el === modal.querySelector(":focus"));
   e.shiftKey ? idx-- : idx++;
@@ -157,7 +158,7 @@ function buildModal() {
     <svg xmlns="http://www.w3.org/2000/svg" width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="#cbd6e2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
     </svg>
-    <label for="modal-file-input" class="upload-label">+ Ajouter photo</label>
+    <button type="button" class="upload-label">+ Ajouter photo</button>
     <small>jpg, png : 4mo max</small>`;
 
   const fileInput = document.createElement("input");
@@ -165,17 +166,22 @@ function buildModal() {
   fileInput.id = "modal-file-input";
   fileInput.accept = "image/jpeg, image/png";
   fileInput.className = "modal-file-input";
+  fileInput.hidden = true;
   fileInput.addEventListener("change", handleFilePreview);
+  placeholder.querySelector(".upload-label").addEventListener("click", () => {
+    fileInput.click();
+  });
 
   uploadZone.appendChild(preview);
   uploadZone.appendChild(placeholder);
   uploadZone.appendChild(fileInput);
 
-  const changePhoto = document.createElement("label");
+  const changePhoto = document.createElement("button");
   changePhoto.id = "modal-change-photo";
-  changePhoto.htmlFor = "modal-file-input";
+  changePhoto.type = "button";
   changePhoto.textContent = "Changer de photo";
   changePhoto.hidden = true;
+  changePhoto.addEventListener("click", () => fileInput.click());
 
   const labelTitle = document.createElement("label");
   labelTitle.htmlFor = "modal-title-input";
@@ -185,6 +191,7 @@ function buildModal() {
   inputTitle.id = "modal-title-input";
   inputTitle.name = "title";
   inputTitle.required = true;
+  inputTitle.addEventListener("input", updateSubmitButton);
 
   const labelCategory = document.createElement("label");
   labelCategory.htmlFor = "modal-category-select";
@@ -193,15 +200,20 @@ function buildModal() {
   selectCategory.id = "modal-category-select";
   selectCategory.name = "category";
   selectCategory.required = true;
+  selectCategory.addEventListener("change", updateSubmitButton);
   const defaultOpt = document.createElement("option");
   defaultOpt.value = "";
   defaultOpt.textContent = "";
   selectCategory.appendChild(defaultOpt);
 
+  const formSeparator = document.createElement("hr");
+  formSeparator.className = "modal-separator";
+
   const submitBtn = document.createElement("button");
   submitBtn.type = "submit";
   submitBtn.className = "modal-submit-btn";
   submitBtn.textContent = "Valider";
+  submitBtn.disabled = true;
 
   const formStatus = document.createElement("p");
   formStatus.id = "modal-form-status";
@@ -214,6 +226,7 @@ function buildModal() {
   form.appendChild(inputTitle);
   form.appendChild(labelCategory);
   form.appendChild(selectCategory);
+  form.appendChild(formSeparator);
   form.appendChild(submitBtn);
   form.appendChild(formStatus);
   form.addEventListener("submit", handleAddWork);
@@ -301,6 +314,7 @@ function resetPhotoPreview() {
   preview.hidden = true;
   document.querySelector(".upload-placeholder").hidden = false;
   document.getElementById("modal-change-photo").hidden = true;
+  updateSubmitButton();
 }
 
 function validatePhoto(file) {
@@ -312,6 +326,18 @@ function validatePhoto(file) {
     return "La photo ne doit pas dépasser 4 Mo.";
   }
   return "";
+}
+
+function updateSubmitButton() {
+  const file = document.getElementById("modal-file-input").files[0];
+  const title = document.getElementById("modal-title-input").value.trim();
+  const category = document.getElementById("modal-category-select");
+  document.querySelector(".modal-submit-btn").disabled =
+    isSubmitting ||
+    Boolean(validatePhoto(file)) ||
+    !title ||
+    !category.value ||
+    category.disabled;
 }
 
 function handleFilePreview(event) {
@@ -326,12 +352,14 @@ function handleFilePreview(event) {
   preview.hidden = false;
   document.querySelector(".upload-placeholder").hidden = true;
   document.getElementById("modal-change-photo").hidden = false;
+  updateSubmitButton();
 }
 
 async function loadModalCategories() {
   const select = document.getElementById("modal-category-select");
   if (select.disabled) return;
   select.disabled = true;
+  updateSubmitButton();
   try {
     const response = await fetch(categoriesUrl);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -349,6 +377,7 @@ async function loadModalCategories() {
     showFormStatus("Impossible de charger les catégories. Veuillez réessayer.");
   } finally {
     select.disabled = false;
+    updateSubmitButton();
   }
 }
 
@@ -377,7 +406,8 @@ async function handleAddWork(event) {
   formData.append("title", title);
   formData.append("category", category.value);
 
-  submitBtn.disabled = true;
+  isSubmitting = true;
+  updateSubmitButton();
   submitBtn.textContent = "Envoi...";
   showFormStatus("");
   try {
@@ -404,8 +434,9 @@ async function handleAddWork(event) {
       "Impossible de contacter le serveur ou de lire sa réponse. Veuillez réessayer.",
     );
   } finally {
-    submitBtn.disabled = false;
+    isSubmitting = false;
     submitBtn.textContent = "Valider";
+    updateSubmitButton();
   }
 }
 
