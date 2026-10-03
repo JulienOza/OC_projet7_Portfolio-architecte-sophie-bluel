@@ -140,9 +140,16 @@ function buildModal() {
   const form = document.createElement("form");
   form.id = "modal-add-form";
   form.className = "modal-add-form";
+  form.noValidate = true;
 
   const uploadZone = document.createElement("div");
   uploadZone.className = "modal-upload-zone";
+
+  const preview = document.createElement("img");
+  preview.id = "modal-preview";
+  preview.className = "modal-preview";
+  preview.alt = "Aperçu de la photo sélectionnée";
+  preview.hidden = true;
 
   const placeholder = document.createElement("div");
   placeholder.className = "upload-placeholder";
@@ -158,9 +165,17 @@ function buildModal() {
   fileInput.id = "modal-file-input";
   fileInput.accept = "image/jpeg, image/png";
   fileInput.className = "modal-file-input";
+  fileInput.addEventListener("change", handleFilePreview);
 
+  uploadZone.appendChild(preview);
   uploadZone.appendChild(placeholder);
   uploadZone.appendChild(fileInput);
+
+  const changePhoto = document.createElement("label");
+  changePhoto.id = "modal-change-photo";
+  changePhoto.htmlFor = "modal-file-input";
+  changePhoto.textContent = "Changer de photo";
+  changePhoto.hidden = true;
 
   const labelTitle = document.createElement("label");
   labelTitle.htmlFor = "modal-title-input";
@@ -188,13 +203,20 @@ function buildModal() {
   submitBtn.className = "modal-submit-btn";
   submitBtn.textContent = "Valider";
 
+  const formStatus = document.createElement("p");
+  formStatus.id = "modal-form-status";
+  formStatus.setAttribute("role", "status");
+  formStatus.hidden = true;
+
   form.appendChild(uploadZone);
+  form.appendChild(changePhoto);
   form.appendChild(labelTitle);
   form.appendChild(inputTitle);
   form.appendChild(labelCategory);
   form.appendChild(selectCategory);
   form.appendChild(submitBtn);
-  form.addEventListener("submit", (e) => e.preventDefault());
+  form.appendChild(formStatus);
+  form.addEventListener("submit", handleAddWork);
 
   viewAdd.appendChild(backBtn);
   viewAdd.appendChild(titleAdd);
@@ -265,9 +287,133 @@ async function deleteWork(work, deleteBtn) {
 
 // ---- Navigation entre les deux vues ----
 
+function showFormStatus(message, success = false) {
+  const status = document.getElementById("modal-form-status");
+  status.textContent = message;
+  status.dataset.success = success;
+  status.hidden = !message;
+}
+
+function resetPhotoPreview() {
+  const preview = document.getElementById("modal-preview");
+  if (preview.getAttribute("src")) URL.revokeObjectURL(preview.src);
+  preview.removeAttribute("src");
+  preview.hidden = true;
+  document.querySelector(".upload-placeholder").hidden = false;
+  document.getElementById("modal-change-photo").hidden = true;
+}
+
+function validatePhoto(file) {
+  if (!file) return "Veuillez sélectionner une photo.";
+  if (file.type !== "image/jpeg" && file.type !== "image/png") {
+    return "La photo doit être au format JPG ou PNG.";
+  }
+  if (file.size > 4 * 1024 * 1024) {
+    return "La photo ne doit pas dépasser 4 Mo.";
+  }
+  return "";
+}
+
+function handleFilePreview(event) {
+  resetPhotoPreview();
+  const file = event.target.files[0];
+  const error = validatePhoto(file);
+  showFormStatus(error);
+  if (error) return;
+
+  const preview = document.getElementById("modal-preview");
+  preview.src = URL.createObjectURL(file);
+  preview.hidden = false;
+  document.querySelector(".upload-placeholder").hidden = true;
+  document.getElementById("modal-change-photo").hidden = false;
+}
+
+async function loadModalCategories() {
+  const select = document.getElementById("modal-category-select");
+  if (select.disabled) return;
+  select.disabled = true;
+  try {
+    const response = await fetch(categoriesUrl);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const categories = await response.json();
+    if (!Array.isArray(categories))
+      throw new Error("Invalid categories response");
+    select.replaceChildren(select.options[0]);
+    for (const category of categories) {
+      const option = document.createElement("option");
+      option.value = category.id;
+      option.textContent = category.name;
+      select.appendChild(option);
+    }
+  } catch (error) {
+    showFormStatus("Impossible de charger les catégories. Veuillez réessayer.");
+  } finally {
+    select.disabled = false;
+  }
+}
+
+async function handleAddWork(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submitBtn = form.querySelector(".modal-submit-btn");
+  if (submitBtn.disabled) return;
+  const file = document.getElementById("modal-file-input").files[0];
+  const title = document.getElementById("modal-title-input").value.trim();
+  const category = document.getElementById("modal-category-select");
+  const photoError = validatePhoto(file);
+  if (photoError) {
+    showFormStatus(photoError);
+    return;
+  }
+  if (!title || !category.value || category.disabled) {
+    showFormStatus(
+      "Veuillez renseigner le titre et sélectionner une catégorie.",
+    );
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("image", file);
+  formData.append("title", title);
+  formData.append("category", category.value);
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Envoi...";
+  showFormStatus("");
+  try {
+    const response = await fetch(worksUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      body: formData,
+    });
+    if (!response.ok) {
+      showFormStatus(
+        `Ajout impossible (HTTP ${response.status}). Veuillez réessayer.`,
+      );
+      return;
+    }
+    const work = await response.json();
+    allWorks.push(work);
+    renderWorks(allWorks);
+    populateModalGallery(allWorks);
+    form.reset();
+    resetPhotoPreview();
+    showFormStatus("Le projet a été ajouté.", true);
+  } catch (error) {
+    showFormStatus(
+      "Impossible de contacter le serveur ou de lire sa réponse. Veuillez réessayer.",
+    );
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Valider";
+  }
+}
+
 function switchToAddView() {
   document.getElementById("modal-view-gallery").style.display = "none";
   document.getElementById("modal-view-add").style.display = "";
+  showFormStatus("");
+  loadModalCategories();
 }
 
 function switchToGalleryView() {
